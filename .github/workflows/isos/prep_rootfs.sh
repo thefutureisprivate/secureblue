@@ -28,10 +28,11 @@ rm -f /usr/share/applications/org.mozilla.Firefox.desktop /usr/share/application
 sed -i '/^Prepend=/s/$/;liveinst.desktop/' /usr/share/kde-settings/kde-profile/default/xdg/kicker-extra-favoritesrc || true
 
 # Require the embedded installer image in containers-storage to satisfy the
-# same sigstore policy used for registry pulls.
+# same sigstore policy used for registry pulls. Use the transport default scope
+# because Anaconda rejects named containers-storage policy scopes here.
 jq --arg image_ref "$IMAGE_REF" \
-    '.transports["containers-storage"] |=
-    { ($image_ref): [
+    '.transports["containers-storage"][""] =
+    [
         {
             "type": "sigstoreSigned",
             "keyPaths": [
@@ -39,10 +40,11 @@ jq --arg image_ref "$IMAGE_REF" \
                 "/usr/share/pki/containers/secureblue-2025.pub"
             ],
             "signedIdentity": {
-                "type": "matchRepository"
+                "type": "exactRepository",
+                "dockerRepository": $image_ref
             }
         }
-    ] } + .' /etc/containers/policy.json | tee /etc/containers/policy.json.tmp && mv /etc/containers/policy.json.tmp /etc/containers/policy.json
+    ]' /etc/containers/policy.json | tee /etc/containers/policy.json.tmp && mv /etc/containers/policy.json.tmp /etc/containers/policy.json
 
 # Disable suspend/sleep during live environment and initial setup
 # This prevents the system from suspending during installation or first-boot user creation
