@@ -17,21 +17,12 @@ jobs:
   build:
     name: Build ISOs
     runs-on: ubuntu-24.04
-    environment: ISOs
-    if: github.triggering_actor == 'royaloughtness'
+    if: github.triggering_actor == 'thefutureisprivate'
     strategy:
       fail-fast: false
       matrix:
         image:
           - silverblue-main-hardened
-          - silverblue-nvidia-hardened
-          - silverblue-nvidia-open-hardened
-          - kinoite-main-hardened
-          - kinoite-nvidia-hardened
-          - kinoite-nvidia-open-hardened
-          - sericea-main-hardened
-          - sericea-nvidia-hardened
-          - sericea-nvidia-open-hardened
     permissions:
       contents: read # read repo contents
       packages: read # pull images for iso generation
@@ -42,12 +33,6 @@ jobs:
         uses: hastd/free-disk-space@68572aeaadb7f76bd408246328e95926323402b5 # v0.1.2
         with:
           skip-if-available: "64G"
-
-      - name: Install deps
-        shell: bash
-        id: install_deps
-        run: |
-          sudo apt-get install rclone
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -80,12 +65,11 @@ jobs:
           mv "${ISO_DEST}" "${IMAGE_NAME}.iso"
           sha256sum "${IMAGE_NAME}.iso" | tee "${IMAGE_NAME}.iso-CHECKSUM"
 
-      - name: Rename ISO and sign CHECKSUM
+      - name: Rename ISO and prepare CHECKSUM
         id: rename
         shell: bash
         env:
           IMAGE_NAME: ${{ matrix.image }}
-          ISO_SIGNING_KEY: ${{ secrets.ISO_SIGNING_KEY }}
         run: |
           sudo chown $(whoami) "${IMAGE_NAME}.iso" "${IMAGE_NAME}.iso-CHECKSUM"
 
@@ -113,32 +97,10 @@ jobs:
           cat "${CHECKSUM_NAME}"
           echo
 
-          echo "${ISO_SIGNING_KEY}" | gpg --import
-
-          echo "Signing the ISO"
-          gpg --clearsign -u 26B4463ED8F313BC7E3FBDF9D9223AF0F47B3E41 "${CHECKSUM_NAME}"
-          mv "${CHECKSUM_NAME}.asc" "${CHECKSUM_NAME}"
-
-          echo "Signed CHECKSUM contents"
-          cat "${CHECKSUM_NAME}"
-          echo
-
-          # validate signature
-          curl -fLsS --retry 5 -O "https://repo.secureblue.dev/secureblue.gpg"
-          gpg --no-default-keyring --keyring ./secureblue-keyring.gpg --import secureblue.gpg
-
-          if ! gpgv --keyring ./secureblue-keyring.gpg "${CHECKSUM_NAME}"; then
-              echo "CHECKSUM signature verification FAILED! Exiting..."
-              exit 1
-          fi
-
           if ! sha256sum --ignore-missing -c "${CHECKSUM_NAME}"; then
               echo "CHECKSUM verification FAILED! Exiting..."
               exit 1
           fi
-
-          rm ./secureblue-keyring.gpg~
-          rm secureblue.gpg
 
           echo "output-directory=${TARGET_OUTPUT_DIRECTORY}" >> ${GITHUB_OUTPUT}
 
@@ -151,17 +113,3 @@ jobs:
           retention-days: 3
           compression-level: 0
           overwrite: true
-
-      - name: Upload ISO and checksum to R2 to ISOS Bucket
-        shell: bash
-        env:
-          RCLONE_CONFIG_R2_TYPE: s3
-          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
-          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.ISOS_ACCESS_KEY_ID }}
-          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.ISOS_SECRET_ACCESS_KEY }}
-          RCLONE_CONFIG_R2_REGION: auto
-          RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.ISOS_ENDPOINT }}
-          OUTPUT_DIRECTORY: ${{ steps.rename.outputs.output-directory }}
-          SOURCE_DIR: .
-        run: |
-          rclone copy "${OUTPUT_DIRECTORY}" R2:isos
