@@ -11,12 +11,6 @@ on:
       - test-restrict-kernel-paths-actions
 
   workflow_dispatch:
-    inputs:
-      clear-plan:
-        description: Clear previous layer plan?
-        type: boolean
-        required: true
-        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
@@ -27,14 +21,7 @@ jobs:
     name: Build issue 391 test image
     permissions:
       contents: read
-      actions: read
-      packages: write
-      id-token: write
-    uses: ./.github/workflows/build-one-recipe.yml
+      packages: read
+    uses: ./.github/workflows/pr_build.yml
     with:
       recipe: general/recipe-silverblue-main.yml
-      rechunk: true
-      clear-plan: ${{ inputs.clear-plan || false }}
-    secrets:
-      SIGNING_SECRET: ${{ secrets.SIGNING_SECRET }}
-      KERNEL_PRIVKEY: ${{ secrets.KERNEL_PRIVKEY }}

@@ -12,6 +12,7 @@ on:
     branches-ignore: # don't rebuild for dependabot
       - 'dependabot/**'
       - 'create-pull-request/**'
+      - 'test-restrict-kernel-paths-actions'
     paths-ignore: # don't rebuild if only documentation has changed
       - "**.md"
 
