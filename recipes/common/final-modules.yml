@@ -9,6 +9,7 @@ modules:
       - addimageinfo.sh
       - regenerateinitramfs.sh
       - checksinglekernel.sh
+      - restrictkernelpaths.sh
       - removesuid.sh
       - enable-preset-services.sh
       - removesudo.sh
